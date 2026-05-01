@@ -46,6 +46,8 @@ docker compose up -d
 curl http://127.0.0.1:10000/health
 ```
 
+> 默认 `docker-compose.yml` 不会把宿主机项目目录挂载到容器内，因为那会覆盖镜像里已安装的 `node_modules`，导致容器依赖宿主机先执行 `npm install`。如果你需要本地源码热更新，建议单独使用开发专用的 Compose 覆盖配置。
+
 ### Node.js (本地开发)
 
 ```bash
@@ -226,6 +228,24 @@ OPENCODE_PROXY_AUTO_CLEANUP_CONVERSATIONS=true
 - `OPENCODE_TOOL_DISCOVERY_FIXTURE` 可用于集成测试或本地调试，绕过真实 `client.tool.ids()` 返回固定工具 ID 列表。
 - 一旦客户端显式传入 `tools`，请求立即回到现有外部工具桥接逻辑，OpenCode 内置工具继续保持禁用。
 
+### 请求级 allowlist 覆盖 (Request-Level Override)
+
+在请求未传入 `tools` 的前提下，客户端可以在请求体中传入自定义字段 `opencode.internal_allowed_tools` 来覆盖服务端的默认内置工具列表。
+出于安全隔离原则，请求级覆盖**只能缩小（求交集），不能扩大**服务端的 allowlist 权限：
+- 如果请求了服务端未开启的内置工具，该工具会被自动忽略。
+- `effective_allowlist = intersection(server_allowlist, request_allowlist)`
+
+**示例：**
+```json
+{
+  "model": "opencode/kimi-k2.5",
+  "messages": [{"role": "user", "content": "Fetch this URL"}],
+  "opencode": {
+    "internal_allowed_tools": ["web_fetch"]
+  }
+}
+```
+
 ---
 
 ## 🔌 API 参考
@@ -235,6 +255,7 @@ OPENCODE_PROXY_AUTO_CLEANUP_CONVERSATIONS=true
 | 方法 | 路径 | 说明 |
 |:-----|:-----|:-----|
 | `GET` | `/health` | 健康检查 |
+| `GET` | `/health/details` | 结构化诊断接口（配置状态、内部指标与缓存） |
 | `GET` | `/v1/models` | 获取可用模型列表 |
 | `POST` | `/v1/chat/completions` | Chat Completions API |
 | `POST` | `/v1/responses` | Responses API |

@@ -28,7 +28,6 @@ services:
     volumes:
       - opencode-data:/home/node/.local/share/opencode
       - opencode-config:/home/node/.config/opencode
-      - .:/home/node/project
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${OPENCODE_PROXY_PORT:-10000}/health"]

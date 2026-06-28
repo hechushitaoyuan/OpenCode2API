@@ -52,6 +52,25 @@ if errorlevel 1 (
 )
 echo OpenCode CLI 已安装 ✓
 echo.
+echo 检查 OpenCode CLI 后端服务是否正在运行...
+netstat -ano | findstr ":5949" | findstr "LISTENING" >nul
+if errorlevel 1 (
+  echo [提示] 检测到 OpenCode CLI 后端服务未运行，正在自动启动...
+  start "OpenCode Backend" cmd /c "opencode serve --port 5949"
+  echo 等待 OpenCode CLI 后端服务启动...
+  timeout /t 3 >nul
+  netstat -ano | findstr ":5949" | findstr "LISTENING" >nul
+  if errorlevel 1 (
+    echo [警告] OpenCode CLI 后端服务启动失败，请稍后手动启动：opencode serve --port 5949
+    echo.
+  ) else (
+    echo OpenCode CLI 后端服务已启动 ✓
+    echo.
+  )
+) else (
+  echo OpenCode CLI 后端服务已在运行 ✓
+  echo.
+)
 echo 即将启动本地 API 服务...
 echo Bridge 会自动启动 OpenCode CLI 后端服务（opencode serve）
 echo.

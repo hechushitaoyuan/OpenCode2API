@@ -1895,8 +1895,15 @@ h2 { font-size: 18px; color: #1a1a1a; margin-bottom: 16px; }
 .btn-secondary:hover { background: #d0d0d0; }
 .warning { background: #fff3cd; border: 1px solid #ffcdd2; border-radius: 8px; padding: 16px; margin-top: 16px; color: #c62828; }
 .warning p { margin: 4px 0; }
-.code-block { background: #1e1e1e; color: #d4d4d4; border-radius: 8px; padding: 16px; margin-top: 8px; font-family: 'Consolas', monospace; font-size: 13px; white-space: pre-wrap; display: none; }
-.code-block.show { display: block; }
+.config-item { margin-bottom: 16px; }
+.config-label { font-weight: 600; color: #555; display: block; margin-bottom: 4px; }
+.config-value { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px 12px; font-family: 'Consolas', monospace; font-size: 14px; color: #333; word-break: break-all; }
+.result-box { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-top: 16px; display: none; }
+.result-box.show { display: block; }
+.result-title { font-weight: 600; color: #333; margin-bottom: 8px; }
+.result-content { font-family: 'Consolas', monospace; font-size: 13px; white-space: pre-wrap; color: #555; max-height: 300px; overflow-y: auto; }
+.result-success { color: #2e7d32; }
+.result-error { color: #c62828; }
 </style>
 </head>
 <body>
@@ -1909,28 +1916,41 @@ h2 { font-size: 18px; color: #1a1a1a; margin-bottom: 16px; }
 ${opencodeConnected ? '<span class="badge badge-ok">已连接</span>' : '<span class="badge badge-err">未连接</span>'}
 </div>
 <div class="status-row"><span class="status-label">API 服务状态：</span><span class="badge badge-ok">正常</span></div>
-<div class="status-row"><span class="status-label">当前 Endpoint：</span><span class="status-value">${endpoint}</span></div>
-<div class="status-row"><span class="status-label">API Key：</span><span class="status-value">${config.API_KEY}</span></div>
-<div class="status-row"><span class="status-label">推荐模型：</span><span class="status-value">${DEFAULT_MODEL}</span></div>
-<div class="status-row"><span class="status-label">模型显示名：</span><span class="status-value">${DEFAULT_MODEL_DISPLAY_NAME}</span></div>
 </div>
 <div class="card">
 <h2>LLM-wiki 配置</h2>
 <p class="subtitle">在 LLM-wiki 的自定义 API 配置中填写以下信息：</p>
-<div class="config-box">
-<div class="config-line"><span class="config-key">API 模式：</span>OpenAI 兼容</div>
-<div class="config-line"><span class="config-key">Endpoint：</span>${endpoint}</div>
-<div class="config-line"><span class="config-key">API 密钥：</span>${config.API_KEY}</div>
-<div class="config-line"><span class="config-key">模型：</span>${DEFAULT_MODEL}</div>
-<div class="config-line"><span class="config-key">显示名称：</span>${DEFAULT_MODEL_DISPLAY_NAME}</div>
+<div style="margin-top: 20px;">
+<div class="config-item">
+<span class="config-label">API 模式：OpenAI 兼容</span>
 </div>
-<button class="btn btn-primary" onclick="copyConfig()">复制 LLM-wiki 配置</button>
-<a class="btn btn-secondary" href="/health">测试连接</a>
-<a class="btn btn-secondary" href="/v1/models">查看模型列表</a>
-<div id="copyResult" class="code-block">API 模式：OpenAI 兼容
-Endpoint：${endpoint}
-API 密钥：${config.API_KEY}
-模型：${DEFAULT_MODEL}</div>
+<div class="config-item">
+<span class="config-label">Endpoint：</span>
+<div class="config-value">${endpoint}</div>
+</div>
+<div class="config-item">
+<span class="config-label">API 密钥：</span>
+<div class="config-value">${config.API_KEY}</div>
+</div>
+<div class="config-item">
+<span class="config-label">模型：</span>
+<div style="display: flex; gap: 8px; align-items: center;">
+<select id="modelSelect" style="flex: 1; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 14px; background: #fff; cursor: pointer;" onchange="updateModelValue()">
+<option value="${DEFAULT_MODEL}">${DEFAULT_MODEL} (默认)</option>
+</select>
+<button class="btn btn-secondary" onclick="loadModelList()" style="margin: 0; padding: 8px 16px;">刷新模型列表</button>
+</div>
+<div id="modelHint" style="font-size: 12px; color: #999; margin-top: 4px;">点击“刷新模型列表”加载可用模型，OpenCode 免费模型会排在最前面</div>
+<div class="config-value" id="modelValue" style="margin-top: 8px;">${DEFAULT_MODEL}</div>
+</div>
+</div>
+<div style="margin-top: 20px; display: flex; gap: 12px;">
+<button class="btn btn-primary" onclick="testConnection()">测试连接</button>
+</div>
+<div id="resultBox" class="result-box">
+<div class="result-title" id="resultTitle"></div>
+<div class="result-content" id="resultContent"></div>
+</div>
 ${!opencodeConnected ? `
 <div class="warning">
 <p><strong>未检测到 OpenCode 本地服务。</strong></p>
@@ -1940,17 +1960,135 @@ ${!opencodeConnected ? `
 </div>
 </div>
 <script>
-function copyConfig() {
-  const text = 'API 模式：OpenAI 兼容\\nEndpoint：${endpoint}\\nAPI 密钥：${config.API_KEY}\\n模型：${DEFAULT_MODEL}';
-  navigator.clipboard.writeText(text).then(() => {
-    const el = document.getElementById('copyResult');
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 3000);
-  }).catch(() => {
-    const el = document.getElementById('copyResult');
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 3000);
-  });
+async function testConnection() {
+  console.log('testConnection called');
+  const resultBox = document.getElementById('resultBox');
+  const resultTitle = document.getElementById('resultTitle');
+  const resultContent = document.getElementById('resultContent');
+  
+  if (!resultBox || !resultTitle || !resultContent) {
+    alert('Error: Cannot find result elements');
+    return;
+  }
+  
+  resultTitle.textContent = '测试连接结果';
+  resultContent.textContent = '正在测试...';
+  resultBox.classList.add('show');
+  console.log('Result box shown');
+  
+  try {
+    const response = await fetch('/health');
+    const data = await response.json();
+    console.log('Health check response:', data);
+    
+    if (data.status === 'ok') {
+      resultTitle.innerHTML = '<span class="result-success">✓ 连接成功</span>';
+      resultContent.innerHTML = '状态：正常<br/>服务：' + data.service + '<br/>OpenCode：已连接<br/>Endpoint：' + (data.endpoint || '${endpoint}');
+    } else {
+      resultTitle.innerHTML = '<span class="result-error">✗ 连接失败</span>';
+      resultContent.textContent = data.message || 'OpenCode 未连接';
+    }
+  } catch (error) {
+    console.error('Test connection error:', error);
+    resultTitle.innerHTML = '<span class="result-error">✗ 连接失败</span>';
+    resultContent.textContent = '无法连接到服务：' + error.message;
+  }
+}
+
+async function loadModelList() {
+  console.log('loadModelList called');
+  const modelSelect = document.getElementById('modelSelect');
+  const modelHint = document.getElementById('modelHint');
+  
+  if (!modelSelect) {
+    alert('Error: Cannot find model select element');
+    return;
+  }
+  
+  modelHint.textContent = '正在加载模型列表...';
+  modelHint.style.color = '#666';
+  
+  try {
+    const response = await fetch('/v1/models', {
+      headers: { 'Authorization': 'Bearer ${config.API_KEY}' }
+    });
+    const data = await response.json();
+    console.log('Models response:', data);
+    
+    if (data.data && data.data.length > 0) {
+      // OpenCode 自带的免费模型（按用户提供的顺序）
+      const freeModels = [
+        'opencode/big-pickle',
+        'opencode/deepseek-v4-flash-free',
+        'mimo-v2.5-free',
+        'opencode/nemotron-3-ultra-free',
+        'opencode/north-mini-code-free'
+      ];
+      
+      // 分离免费模型和其他模型
+      const freeModelList = [];
+      const otherModelList = [];
+      
+      data.data.forEach(function(m) {
+        if (freeModels.includes(m.id)) {
+          freeModelList.push(m);
+        } else {
+          otherModelList.push(m);
+        }
+      });
+      
+      // 按指定顺序排序免费模型
+      freeModelList.sort(function(a, b) {
+        return freeModels.indexOf(a.id) - freeModels.indexOf(b.id);
+      });
+      
+      // 其他模型按名称排序
+      otherModelList.sort(function(a, b) {
+        return a.id.localeCompare(b.id);
+      });
+      
+      // 合并：免费模型在前，其他模型在后
+      const sortedModels = freeModelList.concat(otherModelList);
+      
+      // 清空下拉框
+      modelSelect.innerHTML = '';
+      
+      // 添加所有模型选项
+      sortedModels.forEach(function(m) {
+        const option = document.createElement('option');
+        option.value = m.id;
+        const displayName = m.display_name || m.id;
+        const isFree = freeModels.includes(m.id);
+        option.textContent = displayName + (isFree ? ' [免费]' : '');
+        if (m.id === '${DEFAULT_MODEL}') {
+          option.selected = true;
+        }
+        modelSelect.appendChild(option);
+      });
+      
+      modelHint.textContent = '已加载 ' + sortedModels.length + ' 个模型，OpenCode 免费模型排在最前面';
+      modelHint.style.color = '#2e7d32';
+      
+      // 更新下方显示的值
+      updateModelValue();
+    } else {
+      modelHint.textContent = '未找到可用模型';
+      modelHint.style.color = '#c62828';
+    }
+  } catch (error) {
+    console.error('Load model list error:', error);
+    modelHint.textContent = '加载失败：' + error.message;
+    modelHint.style.color = '#c62828';
+  }
+}
+
+function updateModelValue() {
+  const modelSelect = document.getElementById('modelSelect');
+  const modelValue = document.getElementById('modelValue');
+  
+  if (modelSelect && modelValue) {
+    modelValue.textContent = modelSelect.value;
+  }
 }
 </script>
 </body>

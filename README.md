@@ -1,314 +1,221 @@
-# OpenCode2API
+# LLM-wiki OpenCode Bridge
+
+> 把本机 OpenCode 的模型能力转换成 LLM-wiki 可以识别的 OpenAI 兼容 API。
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.0.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/Node.js-18+-orange" alt="Node">
 </p>
 
-> 📖 [文档](./docs/README.md) | 🚀 [快速开始](#-快速开始)
-
-将本地 [OpenCode](https://opencode.ai) 运行时转换为 OpenAI 兼容 API 网关。在任何 OpenAI 客户端中使用免费模型 (GPT, Nemotron, MiniMax)。
-
 ---
 
-## ✨ 功能特性
+## 这个工具做什么？
 
-| 特性 | 说明 |
-|:-----|:-----|
-| 🟢 **OpenAI 兼容** | `/v1/models`, `/v1/chat/completions`, `/v1/responses` |
-| 📡 **流式输出** | Chat Completions 与 Responses API 的完整 SSE 流式支持 |
-| 🧠 **推理控制** | 支持 `reasoning_effort` 和 `reasoning: { "effort": "high" }` |
-| 🐳 **Docker 部署** | 一键部署，自动启动 OpenCode 后端 |
-| 🛡️ **工具安全** | 默认禁用工具调用 |
-| 🔧 **外部工具桥接** | 支持外部客户端传入 `tools`，由代理桥接为 OpenAI-compatible `tool_calls` / `function_call`，避免命中 OpenCode 内置工具 |
-| 🌐 **内置 web_fetch 透传** | 当请求未传入 `tools` 且显式开启特性时，仅允许 OpenCode 内置 `web_fetch` 参与该次请求 |
+OpenCode Desktop 本身能调用免费模型（如 MiMO V2.5 Free），但 LLM-wiki 需要的是 OpenAI 兼容 API。这个 Bridge 的作用，就是把本机 OpenCode 的能力转换成 LLM-wiki 能识别的 API。
 
----
+大家不用额外注册模型平台账号，不用配置复杂密钥，只需要保持 OpenCode Desktop 打开，然后启动 Bridge，再把三个字段填进 LLM-wiki。
 
-## 🚀 快速开始
+课堂主线：
 
-### Docker 部署 (推荐)
-
-```bash
-# 1. 克隆并配置
-git clone https://github.com/TiaraBasori/opencode2api.git
-cd opencode2api
-cp .env.example .env
-
-# 2. 编辑 .env 设置你的配置
-# 必填: API_KEY, OPENCODE_SERVER_PASSWORD
-
-# 3. 启动
-docker compose up -d
-
-# 4. 测试
-curl http://127.0.0.1:10000/health
 ```
-
-> 默认 `docker-compose.yml` 不会把宿主机项目目录挂载到容器内，因为那会覆盖镜像里已安装的 `node_modules`，导致容器依赖宿主机先执行 `npm install`。如果你需要本地源码热更新，建议单独使用开发专用的 Compose 覆盖配置。
-
-### Node.js (本地开发)
-
-```bash
-# 1. 安装 OpenCode CLI
-npm install -g opencode-ai
-# Linux/macOS: curl -fsSL https://opencode.ai/install | bash
-
-# 2. 克隆并运行
-git clone https://github.com/TiaraBasori/opencode2api.git
-cd opencode2api
-npm install
-cp config.json.example config.json
-npm start
+Obsidian
+  ↓
+LLM-wiki
+  ↓
+OpenAI-compatible API
+  ↓
+LLM-wiki OpenCode Bridge
+  ↓
+OpenCode Desktop / CLI
+  ↓
+MiMO V2.5 Free
 ```
 
 ---
 
-## 💡 使用示例
+## 适合谁？
 
-### Chat Completions
+- LLM-wiki 课程学员
+- Obsidian 用户
+- Windows 小白用户
+- 想本地测试 OpenCode 免费模型的人
+
+---
+
+## 使用前准备
+
+1. **安装 Node.js LTS** — 下载地址：https://nodejs.org/
+2. **安装 OpenCode Desktop** — 从 OpenCode 官网下载安装
+3. **确认 OpenCode Desktop 中 MiMO V2.5 Free 可以正常对话**
+
+> 本工具仅供本机学习测试使用，不要用于公网服务。
+
+---
+
+## 一键启动
+
+双击项目根目录下的：
+
+```
+start-windows.bat
+```
+
+脚本会自动：
+1. 检查 Node.js 是否安装
+2. 检查 npm 是否可用
+3. 自动安装依赖（首次运行）
+4. 启动 API 服务
+5. 在终端中显示 LLM-wiki 配置信息
+
+---
+
+## LLM-wiki 配置
+
+在 LLM-wiki 的自定义 API 配置中填写：
+
+| 配置项 | 值 |
+|:------|:---|
+| API 模式 | OpenAI 兼容 |
+| Endpoint | `http://127.0.0.1:9999/v1` |
+| API 密钥 | `sk-tjad1230` |
+| 模型 | `mimo-v2.5-free` |
+| 显示名称 | `MiMO V2.5 Free` |
+
+也可以打开浏览器访问 http://127.0.0.1:9999 查看配置页面，支持一键复制。
+
+---
+
+## 默认配置
+
+项目开箱即用，默认配置如下：
+
+```json
+{
+  "BIND_HOST": "127.0.0.1",
+  "PORT": 9999,
+  "API_KEY": "sk-tjad1230",
+  "DEFAULT_MODEL": "mimo-v2.5-free",
+  "DEFAULT_MODEL_DISPLAY_NAME": "MiMO V2.5 Free",
+  "OPENCODE_SERVER_URL": "http://127.0.0.1:5949"
+}
+```
+
+如需修改，可以编辑 `config.json` 或设置环境变量（参考 `.env.example`）。
+
+---
+
+## 模型别名兼容
+
+以下模型名都可以正常使用，都会指向 MiMO V2.5 Free：
+
+```
+mimo-v2.5-free
+MiMO V2.5 Free
+mimo
+opencode-auto
+```
+
+---
+
+## API 接口
+
+| 方法 | 路径 | 说明 |
+|:-----|:-----|:-----|
+| `GET` | `/` | 首页（配置说明页面） |
+| `GET` | `/health` | 健康检查（含 OpenCode 连接状态） |
+| `GET` | `/v1/models` | 获取可用模型列表 |
+| `POST` | `/v1/chat/completions` | Chat Completions API |
+
+### 健康检查示例
 
 ```bash
-curl -X POST http://127.0.0.1:10000/v1/chat/completions \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+curl http://127.0.0.1:9999/health
+```
+
+正常返回：
+```json
+{
+  "status": "ok",
+  "service": "llm-wiki-opencode-bridge",
+  "opencode": "connected",
+  "endpoint": "http://127.0.0.1:9999/v1",
+  "defaultModel": "mimo-v2.5-free",
+  "defaultModelDisplayName": "MiMO V2.5 Free"
+}
+```
+
+### Chat Completions 示例
+
+```bash
+curl -X POST http://127.0.0.1:9999/v1/chat/completions \
+  -H "Authorization: Bearer sk-tjad1230" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "opencode/big-pickle",
-    "messages": [{"role": "user", "content": "你好!"}],
+    "model": "mimo-v2.5-free",
+    "messages": [{"role": "user", "content": "你好！"}],
     "stream": false
   }'
 ```
 
-### Responses API (带推理)
+---
 
-```bash
-curl -N -X POST http://127.0.0.1:10000/v1/responses \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt5-nano",
-    "input": "用一句话打招呼",
-    "reasoning": {"effort": "high"},
-    "stream": true
-  }'
-```
+## 常见问题
 
-### Chat Completions + 外部工具
+### 连接失败怎么办？
 
-```bash
-curl -X POST http://127.0.0.1:10000/v1/chat/completions \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "opencode/big-pickle",
-    "messages": [{"role": "user", "content": "帮我获取 https://example.com 的标题"}],
-    "tools": [
-      {
-        "type": "function",
-        "function": {
-          "name": "web_fetch",
-          "description": "Fetch a URL and return its content summary",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "url": {"type": "string"}
-            },
-            "required": ["url"]
-          }
-        }
-      }
-    ]
-  }'
-```
+1. 确认 OpenCode Desktop 已打开
+2. 确认 OpenCode Desktop 中 Local Server 为绿色在线状态
+3. 确认 Bridge 服务已启动（终端窗口没有关闭）
+4. 打开浏览器访问 http://127.0.0.1:9999 查看状态
 
-### Responses API + 外部工具流式
+### 模型列表为空怎么办？
 
-```bash
-curl -N -X POST http://127.0.0.1:10000/v1/responses \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "opencode/big-pickle",
-    "input": "查询东京天气",
-    "stream": true,
-    "tools": [
-      {
-        "type": "function",
-        "function": {
-          "name": "weather_lookup",
-          "description": "Look up weather by city",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "city": {"type": "string"},
-              "unit": {"type": "string"}
-            },
-            "required": ["city"]
-          }
-        }
-      }
-    ]
-  }'
-```
+- 检查 OpenCode Desktop 是否正常登录
+- 在 OpenCode Desktop 中尝试与 MiMO V2.5 Free 对话一次
+- 刷新 http://127.0.0.1:9999/v1/models
+
+### OpenCode 没启动怎么办？
+
+打开 OpenCode Desktop 应用程序，等待其完全加载，确认左下角状态为在线。如果使用 CLI，在终端运行 `opencode` 命令。
+
+### 9999 端口被占用怎么办？
+
+关闭其他正在运行的 Bridge 实例。如果仍有问题，可以在 `config.json` 中修改 `PORT` 为其他端口号，同时更新 LLM-wiki 中的 Endpoint。
+
+### 为什么不要关闭 OpenCode Desktop？
+
+Bridge 只是一个转换层，实际的模型调用由 OpenCode 完成。如果关闭 OpenCode，Bridge 将无法调用任何模型。
 
 ---
 
-## 📦 部署方式
+## 安全说明
 
-| 模式 | 说明 | 适用场景 |
-|:-----|:-----|:---------|
-| 🐳 **Docker** | 完整栈，自动启动 OpenCode 后端 | 生产环境，最简配置 |
-| 💻 **独立 Node** | 手动管理后端 | 开发、自定义集成 |
-
----
-
-## ⚙️ 配置
-
-### 快速参考
-
-| 环境变量 | 默认值 | 说明 |
-|:--------|:-------|:------|
-| `PORT` / `OPENCODE_PROXY_PORT` | `10000` | 代理服务端口 |
-| `OPENCODE_SERVER_PORT` | `10001` | OpenCode 后端服务端口 |
-| `API_KEY` | - | Bearer Token 认证密钥 |
-| `BIND_HOST` | `0.0.0.0` | 绑定地址 |
-| `DISABLE_TOOLS` | `true` | 禁用 OpenCode 工具调用 |
-| `OPENCODE_EXTERNAL_TOOLS_MODE` | `proxy-bridge` | 外部工具桥接模式；当前仅支持 `proxy-bridge` |
-| `OPENCODE_EXTERNAL_TOOLS_CONFLICT_POLICY` | `namespace` | 外部工具与 OpenCode 内置工具的冲突隔离策略；当前仅支持 `namespace` |
-| `OPENCODE_INTERNAL_WEB_FETCH_ENABLED` | `false` | 兼容旧开关；当未显式配置 allowlist 时，启用后默认放行 `web_fetch` |
-| `OPENCODE_INTERNAL_ALLOWED_TOOLS` | `(none)` | 当请求未传入 `tools` 时，允许使用的 OpenCode 内置工具列表，逗号分隔 |
-| `OPENCODE_INTERNAL_TOOL_METRICS_ENABLED` | `true` | 输出 internal allowlist 模式的调试/指标日志 |
-| `OPENCODE_TOOL_DISCOVERY_FIXTURE` | `(none)` | 集成测试/本地调试用的后端工具 ID 固定列表，逗号分隔 |
-| `OPENCODE_HEALTH_DETAILS_ENABLED` | `true` | 控制 `/health/details` 是否暴露 |
-| `OPENCODE_HEALTH_DETAILS_REQUIRE_AUTH` | `true` | 控制 `/health/details` 是否要求 Bearer 认证 |
-| `OPENCODE_METRICS_ENABLED` | `false` | 控制 `/metrics` 是否暴露 |
-| `OPENCODE_METRICS_REQUIRE_AUTH` | `true` | 控制 `/metrics` 是否要求 Bearer 认证 |
-| `USE_ISOLATED_HOME` | `false` | 使用隔离的 OpenCode 配置目录 |
-| `OPENCODE_PROXY_PROMPT_MODE` | `standard` | 提示词处理模式 |
-| `OPENCODE_PROXY_OMIT_SYSTEM_PROMPT` | `false` | 忽略传入的 system prompt |
-| `OPENCODE_PROXY_AUTO_CLEANUP_CONVERSATIONS` | `false` | 自动清理会话存储 |
-| `OPENCODE_PROXY_CLEANUP_INTERVAL_MS` | `43200000` | 清理间隔 (毫秒) |
-| `OPENCODE_PROXY_CLEANUP_MAX_AGE_MS` | `86400000` | 最大存储时间 (毫秒) |
-| `OPENCODE_PROXY_REQUEST_TIMEOUT_MS` | `180000` | 请求超时时间 (毫秒) |
-| `OPENCODE_SERVER_URL` | `http://127.0.0.1:10001` | OpenCode 后端地址 |
-| `OPENCODE_SERVER_PASSWORD` | - | OpenCode 后端密码 |
-| `OPENCODE_PATH` | `opencode` | OpenCode 可执行文件路径 |
-| `OPENCODE_ZEN_API_KEY` | - | Zen API Key 透传 |
-| `DEBUG` / `OPENCODE_PROXY_DEBUG` | `false` | 调试日志 |
-
-> 📄 完整配置参考: [配置详解](./docs/configuration.md)
-
-### 推荐生产配置
-
-```env
-API_KEY=your-secret-key
-OPENCODE_SERVER_PASSWORD=your-password
-DISABLE_TOOLS=true
-OPENCODE_EXTERNAL_TOOLS_MODE=proxy-bridge
-OPENCODE_EXTERNAL_TOOLS_CONFLICT_POLICY=namespace
-OPENCODE_INTERNAL_ALLOWED_TOOLS=web_fetch
-OPENCODE_INTERNAL_TOOL_METRICS_ENABLED=true
-OPENCODE_TOOL_DISCOVERY_FIXTURE=
-OPENCODE_HEALTH_DETAILS_ENABLED=true
-OPENCODE_HEALTH_DETAILS_REQUIRE_AUTH=true
-OPENCODE_METRICS_ENABLED=false
-OPENCODE_METRICS_REQUIRE_AUTH=true
-OPENCODE_PROXY_PROMPT_MODE=plugin-inject
-OPENCODE_PROXY_OMIT_SYSTEM_PROMPT=true
-OPENCODE_PROXY_AUTO_CLEANUP_CONVERSATIONS=true
-```
-
-
-### 外部工具桥接说明
-
-- 外部客户端传入的 `tools` 不会被注册为 OpenCode 内置工具。
-- 代理会把这些工具虚拟化后交给模型使用，并把模型输出重新整理为 OpenAI-compatible `tool_calls` / `function_call`。
-- 同名冲突默认通过内部命名空间隔离处理，例如客户端的 `web_fetch` 不会误触发 OpenCode 容器内工具。
-- 内部命名空间名（如 `external__web_fetch`）是代理内部实现细节，不属于公开 API。
-
-### 内置工具 allowlist 说明
-
-- 当请求 **未传入** `tools` 时，代理会进入 internal allowlist 模式，并只允许 `OPENCODE_INTERNAL_ALLOWED_TOOLS` 中声明的 OpenCode 内置工具。
-- `OPENCODE_INTERNAL_WEB_FETCH_ENABLED=true` 仅作为兼容旧配置的快捷方式：当未显式配置 `OPENCODE_INTERNAL_ALLOWED_TOOLS` 时，会默认把 allowlist 视为 `web_fetch`。
-- 代理会读取后端工具列表，并通过精确匹配或 `.<tool>` / `/<tool>` 后缀匹配解析最终可用工具。
-- 如果配置的 allowlist 在后端工具列表中一个也匹配不到，代理会自动回退到“全部内置工具禁用”的安全模式。
-- `OPENCODE_INTERNAL_TOOL_METRICS_ENABLED=true` 时，代理会输出 internal allowlist 模式的调试/指标日志，包括模式选择、后端工具发现、allowlist 命中结果和降级原因，但不会记录工具返回内容。
-- `OPENCODE_TOOL_DISCOVERY_FIXTURE` 可用于集成测试或本地调试，绕过真实 `client.tool.ids()` 返回固定工具 ID 列表。
-- 一旦客户端显式传入 `tools`，请求立即回到现有外部工具桥接逻辑，OpenCode 内置工具继续保持禁用。
-
-### 结构化诊断与 Prometheus 指标
-
-- `/health` 始终保持为轻量健康检查接口。
-- `/health/details` 返回结构化 JSON 诊断数据，可通过 `OPENCODE_HEALTH_DETAILS_ENABLED` 控制是否暴露，并通过 `OPENCODE_HEALTH_DETAILS_REQUIRE_AUTH` 控制是否要求 Bearer 认证。
-- `/metrics` 返回 Prometheus 文本格式指标，可通过 `OPENCODE_METRICS_ENABLED` 控制是否暴露，并通过 `OPENCODE_METRICS_REQUIRE_AUTH` 控制是否要求 Bearer 认证。
-- `/metrics` 目前暴露 internal tool mode、tool discovery failures、fallback count 和 tool-id cache 数量等指标。
+- 默认只监听 127.0.0.1，不开放局域网访问
+- 不读取浏览器 Cookie
+- 不导出 OpenCode 账号凭据
+- 不做账号池
+- 不上传用户笔记内容到额外服务器
+- 不保存用户 prompt 日志（除非主动开启 debug）
+- 仅供本机学习测试使用
 
 ---
 
-## 🔌 API 参考
-
-### 端点
-
-| 方法 | 路径 | 说明 |
-|:-----|:-----|:-----|
-| `GET` | `/health` | 健康检查 |
-| `GET` | `/health/details` | 结构化诊断接口（可配置开关/鉴权） |
-| `GET` | `/metrics` | Prometheus 指标接口（可配置开关/鉴权） |
-| `GET` | `/v1/models` | 获取可用模型列表 |
-| `POST` | `/v1/chat/completions` | Chat Completions API |
-| `POST` | `/v1/responses` | Responses API |
-
-### 模型名称格式
-
-- 直接使用: `opencode/big-pickle`
-- 带别名: `gpt5-nano` (自动解析为 `gpt-5-nano`)
-- 带前缀: `opencode/gpt5-nano`
-
-> 📖 详见 [API 参考文档](./docs/api-reference.md)
-
----
-
-## 🔧 故障排查
-
-### 请求卡住但 `/v1/models` 正常
-```bash
-USE_ISOLATED_HOME=false  # 让 OpenCode 复用本地登录态
-```
-
-### 模型找不到
-- 查看可用模型: `curl http://127.0.0.1:10000/v1/models`
-- 确认模型 ID 完全匹配
-
-### 没有推理输出
-- 使用 `stream: true` 的 Responses API
-- 发送 `reasoning.effort` 或 `reasoning_effort`
-
-> 📖 完整指南: [故障排查](./docs/troubleshooting.md)
-
----
-
-## 🔨 开发
+## 开发
 
 ```bash
+# 安装依赖
+npm install
+
+# 启动服务
+npm start
+
 # 运行测试
-npm test -- --runInBand
-
-# Docker 开发
-docker compose up -d --build
+npm test
 ```
 
 ---
 
-## 📄 许可证
+## 许可证
 
 MIT · 详见 [LICENSE](./LICENSE.md)
-
----
-
-## 🙏 致谢
-
-感谢以下开源项目:
-
-- [dxxzst/opencode-to-openai](https://github.com/dxxzst/opencode-to-openai)
-- [lucasliet/opencode-openai-proxy](https://github.com/lucasliet/opencode-openai-proxy)

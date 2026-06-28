@@ -6,13 +6,15 @@ services:
     image: ghcr.io/tiarabasori/opencode2api:latest
     container_name: opencode2api
     ports:
-      - "${OPENCODE_PROXY_PORT:-10000}:${OPENCODE_PROXY_PORT:-10000}"
+      - "${OPENCODE_PROXY_PORT:-9999}:${OPENCODE_PROXY_PORT:-9999}"
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
       - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD:-}
       - OPENCODE_ZEN_API_KEY=${OPENCODE_ZEN_API_KEY:-}
-      - API_KEY=${API_KEY:-}
+      - API_KEY=${API_KEY:-sk-tjad1230}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-mimo-v2.5-free}
+      - DEFAULT_MODEL_DISPLAY_NAME=${DEFAULT_MODEL_DISPLAY_NAME:-MiMO V2.5 Free}
       - BIND_HOST=0.0.0.0
       - DISABLE_TOOLS=${DISABLE_TOOLS:-true}
       - OPENCODE_USE_ISOLATED_HOME=${OPENCODE_USE_ISOLATED_HOME:-false}
@@ -23,14 +25,14 @@ services:
       - OPENCODE_PROXY_CLEANUP_INTERVAL_MS=${OPENCODE_PROXY_CLEANUP_INTERVAL_MS:-43200000}
       - OPENCODE_PROXY_CLEANUP_MAX_AGE_MS=${OPENCODE_PROXY_CLEANUP_MAX_AGE_MS:-86400000}
       - OPENCODE_PROXY_REQUEST_TIMEOUT_MS=${OPENCODE_PROXY_REQUEST_TIMEOUT_MS:-180000}
-      - OPENCODE_PROXY_PORT=${OPENCODE_PROXY_PORT:-10000}
-      - OPENCODE_SERVER_PORT=${OPENCODE_SERVER_PORT:-10001}
+      - OPENCODE_PROXY_PORT=${OPENCODE_PROXY_PORT:-9999}
+      - OPENCODE_SERVER_PORT=${OPENCODE_SERVER_PORT:-5949}
     volumes:
       - opencode-data:/home/node/.local/share/opencode
       - opencode-config:/home/node/.config/opencode
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${OPENCODE_PROXY_PORT:-10000}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${OPENCODE_PROXY_PORT:-9999}/health"]
       interval: 30s
       timeout: 10s
       retries: 3

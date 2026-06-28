@@ -326,6 +326,8 @@ if (process.platform !== 'win32') {
 export function createApp(config) {
     const {
         API_KEY,
+        DEFAULT_MODEL = 'mimo-v2.5-free',
+        DEFAULT_MODEL_DISPLAY_NAME = 'MiMO V2.5 Free',
         OPENCODE_SERVER_URL,
         OPENCODE_SERVER_PASSWORD,
         REQUEST_TIMEOUT_MS,
@@ -375,7 +377,7 @@ export function createApp(config) {
         if (API_KEY && API_KEY.trim() !== '') {
             const authHeader = req.headers.authorization;
             if (!authHeader || authHeader !== `Bearer ${API_KEY}`) {
-                return res.status(401).json({ error: { message: 'Unauthorized' } });
+                return res.status(401).json({ error: { message: 'API 密钥不正确。课堂默认密钥是 sk-tjad1230，请检查 LLM-wiki 中的 API 密钥设置。', type: 'invalid_api_key' } });
             }
         }
         next();
@@ -416,11 +418,75 @@ export function createApp(config) {
             .replace(/^o(\d)/i, 'o$1');
     };
 
+    // 模型别名映射 — 将各种别名统一映射到 DEFAULT_MODEL
+    const normalizeModel = (model) => {
+        const m = String(model || '').toLowerCase().trim();
+        if (
+            m === 'mimo-v2.5-free' ||
+            m === 'mimo' ||
+            m === 'mimo v2.5 free' ||
+            m === 'opencode-auto'
+        ) {
+            return DEFAULT_MODEL;
+        }
+        return model || DEFAULT_MODEL;
+    };
+
+    // 检测 OpenCode 后端是否可连接
+    const checkOpencodeConnected = async () => {
+        try {
+            await checkHealth(OPENCODE_SERVER_URL, OPENCODE_SERVER_PASSWORD);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    };
+
+    // 构建默认模型列表（无论 OpenCode 是否连接都保证返回）
+    const buildDefaultModels = () => {
+        const now = Math.floor(Date.now() / 1000);
+        return [
+            {
+                id: DEFAULT_MODEL,
+                object: 'model',
+                created: now,
+                owned_by: 'opencode',
+                display_name: DEFAULT_MODEL_DISPLAY_NAME
+            },
+            {
+                id: 'opencode-auto',
+                object: 'model',
+                created: now,
+                owned_by: 'opencode',
+                display_name: 'OpenCode Auto'
+            }
+        ];
+    };
+
     const resolveRequestedModel = async (requestedModel) => {
-        const providersList = await getProvidersList();
-        const models = buildModelsList(providersList);
-        const fallbackModel = models[0]?.id || 'opencode/kimi-k2.5-free';
-        let [providerID, modelID] = (requestedModel || fallbackModel).split('/');
+        // 先做别名映射
+        const aliasedModel = normalizeModel(requestedModel);
+        let providersList;
+        let models = [];
+        let opencodeConnected = false;
+        try {
+            providersList = await getProvidersList();
+            models = buildModelsList(providersList);
+            opencodeConnected = true;
+        } catch (e) {
+            // OpenCode 未连接时，使用默认模型
+            console.warn('[Proxy] OpenCode 后端不可达，使用默认模型:', DEFAULT_MODEL);
+            return {
+                providerID: 'opencode',
+                modelID: DEFAULT_MODEL,
+                models: buildDefaultModels(),
+                resolved: `opencode/${DEFAULT_MODEL}`,
+                opencodeConnected: false
+            };
+        }
+
+        const fallbackModel = models[0]?.id || `opencode/${DEFAULT_MODEL}`;
+        let [providerID, modelID] = (aliasedModel || fallbackModel).split('/');
         if (!modelID) {
             modelID = providerID;
             providerID = 'opencode';
@@ -436,6 +502,7 @@ export function createApp(config) {
                 modelID: resolvedModelID,
                 models,
                 resolved: exact.id,
+                opencodeConnected: true,
                 ...(resolvedModelID !== originalModelID && { aliasFrom: `${providerID}/${originalModelID}` })
             };
         }
@@ -443,7 +510,18 @@ export function createApp(config) {
         const suffixMatch = sameProvider.find((m) => candidateModelIDs.some((candidate) => m.id.endsWith(`/${candidate}-free`) || m.id.endsWith(`/${candidate}`)));
         if (suffixMatch) {
             const [, resolvedModelID] = suffixMatch.id.split('/');
-            return { providerID, modelID: resolvedModelID, models, resolved: suffixMatch.id, aliasFrom: `${providerID}/${originalModelID}` };
+            return { providerID, modelID: resolvedModelID, models, resolved: suffixMatch.id, opencodeConnected: true, aliasFrom: `${providerID}/${originalModelID}` };
+        }
+        // 如果在真实模型列表中找不到，但请求的是默认模型别名，则回退到默认模型
+        if (aliasedModel === DEFAULT_MODEL) {
+            return {
+                providerID: 'opencode',
+                modelID: DEFAULT_MODEL,
+                models,
+                resolved: `opencode/${DEFAULT_MODEL}`,
+                opencodeConnected: true,
+                aliasFrom: requestedModel
+            };
         }
         const error = new Error(`Model not found: ${providerID}/${modelID}`);
         error.statusCode = 400;
@@ -455,11 +533,16 @@ export function createApp(config) {
     // Models endpoint
     app.get('/v1/models', async (_req, res) => {
         try {
-            const models = buildModelsList(await getProvidersList());
-            res.json({ object: 'list', data: models });
+            const realModels = buildModelsList(await getProvidersList());
+            // 始终保证默认模型在列表中
+            const defaults = buildDefaultModels();
+            const defaultIds = defaults.map((m) => m.id);
+            const merged = [...defaults, ...realModels.filter((m) => !defaultIds.includes(m.id.split('/').pop()))];
+            res.json({ object: 'list', data: merged });
         } catch (error) {
             console.error('[Proxy] Model Fetch Error:', error.message);
-            res.json({ object: 'list', data: [{ id: 'opencode/kimi-k2.5-free', object: 'model' }] });
+            // OpenCode 未连接时返回默认模型
+            res.json({ object: 'list', data: buildDefaultModels() });
         }
     });
 
@@ -1120,7 +1203,7 @@ export function createApp(config) {
                 let eventStream = null;
                 let stream = false;
                 let pID = 'opencode';
-                let mID = 'kimi-k2.5-free';
+                let mID = DEFAULT_MODEL;
                 let id = `chatcmpl-${Date.now()}`;
                 let insideReasoning = false;
                 let keepaliveInterval = null;
@@ -1154,6 +1237,16 @@ export function createApp(config) {
                     mID = resolvedModel.modelID;
                     if (resolvedModel.aliasFrom) {
                         logDebug('Resolved model alias', { from: resolvedModel.aliasFrom, to: resolvedModel.resolved });
+                    }
+
+                    // OpenCode 未连接时返回中文友好提示
+                    if (resolvedModel.opencodeConnected === false) {
+                        return res.status(503).json({
+                            error: {
+                                message: '未检测到 OpenCode 本地服务。\n请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线状态。\n如果使用 OpenCode CLI，请先运行 opencode。',
+                                type: 'opencode_not_connected'
+                            }
+                        });
                     }
 
                     const normalizeMessageContent = (content) => normalizeTextContent(content);
@@ -1704,9 +1797,18 @@ export function createApp(config) {
                         }
                         if (error.message && error.message.includes('Request timeout')) {
                             statusCode = 504;
+                            errorMessage = '请求超时。请稍后重试，或检查 OpenCode 是否正常运行。';
                         }
                         if (error.message && error.message.includes('ENOENT')) {
-                            errorMessage = 'OpenCode backend file access error. This may be a Windows compatibility issue. Please try restarting the service.';
+                            errorMessage = 'OpenCode 后端文件访问错误。这可能是 Windows 兼容性问题，请尝试重启服务。';
+                        }
+                        // OpenCode 未连接时的中文提示
+                        if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED') || error.message?.includes('fetch failed') || error.message?.includes('connect') || error.message?.includes('Status ')) {
+                            errorMessage = '未检测到 OpenCode 本地服务。\n请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线状态。\n如果使用 OpenCode CLI，请先运行 opencode。';
+                        }
+                        // 模型调用失败提示
+                        if (error.code === 'model_not_found' || error.message?.includes('Model not found')) {
+                            errorMessage = 'OpenCode 模型调用失败。\n请先在 OpenCode Desktop 中确认 MiMO V2.5 Free 可以正常对话。';
                         }
                         res.status(statusCode).json({
                             error: {
@@ -1736,7 +1838,11 @@ export function createApp(config) {
         } catch (error) {
             console.error('[Proxy] Request Handler Error:', error.message);
             if (!res.headersSent) {
-                res.status(500).json({ error: { message: error.message, type: error.constructor.name } });
+                let errorMessage = error.message;
+                if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED') || error.message?.includes('fetch failed')) {
+                    errorMessage = '未检测到 OpenCode 本地服务。\n请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线状态。';
+                }
+                res.status(500).json({ error: { message: errorMessage, type: error.constructor.name } });
             }
         }
     });
@@ -1753,10 +1859,125 @@ export function createApp(config) {
         return hasValidBearerAuth(req);
     };
 
-    app.get('/health', (_req, res) => res.json({
-        status: 'ok',
-        proxy: true
-    }));
+    // 首页 — 显示 LLM-wiki 配置页面
+    app.get('/', async (_req, res) => {
+        const opencodeConnected = await checkOpencodeConnected();
+        const endpoint = `http://${config.BIND_HOST === '0.0.0.0' ? '127.0.0.1' : config.BIND_HOST}:${config.PORT}/v1`;
+        const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM-wiki OpenCode Bridge</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+.container { max-width: 720px; margin: 40px auto; padding: 0 20px; }
+.card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px; }
+h1 { font-size: 24px; color: #1a1a1a; margin-bottom: 8px; }
+h2 { font-size: 18px; color: #1a1a1a; margin-bottom: 16px; }
+.subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+.status-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+.status-row:last-child { border-bottom: none; }
+.status-label { font-weight: 600; min-width: 140px; color: #555; }
+.status-value { color: #333; }
+.badge { display: inline-block; padding: 2px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; }
+.badge-ok { background: #e6f7e6; color: #2e7d32; }
+.badge-err { background: #fdecea; color: #c62828; }
+.config-box { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 16px 0; }
+.config-line { padding: 4px 0; font-family: 'Consolas', 'Courier New', monospace; font-size: 14px; }
+.config-key { color: #1565c0; font-weight: 600; }
+.btn { display: inline-block; padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 12px; margin-top: 8px; text-decoration: none; transition: background 0.2s; }
+.btn-primary { background: #1565c0; color: #fff; }
+.btn-primary:hover { background: #0d47a1; }
+.btn-secondary { background: #e0e0e0; color: #333; }
+.btn-secondary:hover { background: #d0d0d0; }
+.warning { background: #fff3cd; border: 1px solid #ffcdd2; border-radius: 8px; padding: 16px; margin-top: 16px; color: #c62828; }
+.warning p { margin: 4px 0; }
+.code-block { background: #1e1e1e; color: #d4d4d4; border-radius: 8px; padding: 16px; margin-top: 8px; font-family: 'Consolas', monospace; font-size: 13px; white-space: pre-wrap; display: none; }
+.code-block.show { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="card">
+<h1>LLM-wiki OpenCode Bridge</h1>
+<p class="subtitle">把本机 OpenCode 的模型能力转换成 LLM-wiki 可调用的 OpenAI 兼容 API</p>
+<div class="status-row">
+<span class="status-label">OpenCode 状态：</span>
+${opencodeConnected ? '<span class="badge badge-ok">已连接</span>' : '<span class="badge badge-err">未连接</span>'}
+</div>
+<div class="status-row"><span class="status-label">API 服务状态：</span><span class="badge badge-ok">正常</span></div>
+<div class="status-row"><span class="status-label">当前 Endpoint：</span><span class="status-value">${endpoint}</span></div>
+<div class="status-row"><span class="status-label">API Key：</span><span class="status-value">${config.API_KEY}</span></div>
+<div class="status-row"><span class="status-label">推荐模型：</span><span class="status-value">${DEFAULT_MODEL}</span></div>
+<div class="status-row"><span class="status-label">模型显示名：</span><span class="status-value">${DEFAULT_MODEL_DISPLAY_NAME}</span></div>
+</div>
+<div class="card">
+<h2>LLM-wiki 配置</h2>
+<p class="subtitle">在 LLM-wiki 的自定义 API 配置中填写以下信息：</p>
+<div class="config-box">
+<div class="config-line"><span class="config-key">API 模式：</span>OpenAI 兼容</div>
+<div class="config-line"><span class="config-key">Endpoint：</span>${endpoint}</div>
+<div class="config-line"><span class="config-key">API 密钥：</span>${config.API_KEY}</div>
+<div class="config-line"><span class="config-key">模型：</span>${DEFAULT_MODEL}</div>
+<div class="config-line"><span class="config-key">显示名称：</span>${DEFAULT_MODEL_DISPLAY_NAME}</div>
+</div>
+<button class="btn btn-primary" onclick="copyConfig()">复制 LLM-wiki 配置</button>
+<a class="btn btn-secondary" href="/health">测试连接</a>
+<a class="btn btn-secondary" href="/v1/models">查看模型列表</a>
+<div id="copyResult" class="code-block">API 模式：OpenAI 兼容
+Endpoint：${endpoint}
+API 密钥：${config.API_KEY}
+模型：${DEFAULT_MODEL}</div>
+${!opencodeConnected ? `
+<div class="warning">
+<p><strong>未检测到 OpenCode 本地服务。</strong></p>
+<p>请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线状态。</p>
+<p>如果使用 OpenCode CLI，请先运行 opencode。</p>
+</div>` : ''}
+</div>
+</div>
+<script>
+function copyConfig() {
+  const text = 'API 模式：OpenAI 兼容\\nEndpoint：${endpoint}\\nAPI 密钥：${config.API_KEY}\\n模型：${DEFAULT_MODEL}';
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('copyResult');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }).catch(() => {
+    const el = document.getElementById('copyResult');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  });
+}
+</script>
+</body>
+</html>`;
+        res.type('text/html').send(html);
+    });
+
+    app.get('/health', async (_req, res) => {
+        const opencodeConnected = await checkOpencodeConnected();
+        const endpoint = `http://${config.BIND_HOST === '0.0.0.0' ? '127.0.0.1' : config.BIND_HOST}:${config.PORT}/v1`;
+        if (opencodeConnected) {
+            res.json({
+                status: 'ok',
+                service: 'llm-wiki-opencode-bridge',
+                opencode: 'connected',
+                endpoint: endpoint,
+                defaultModel: DEFAULT_MODEL,
+                defaultModelDisplayName: DEFAULT_MODEL_DISPLAY_NAME
+            });
+        } else {
+            res.json({
+                status: 'degraded',
+                service: 'llm-wiki-opencode-bridge',
+                opencode: 'not_connected',
+                message: '请先启动 OpenCode Desktop 或 OpenCode CLI'
+            });
+        }
+    });
 
     app.get('/health/details', (req, res) => {
         if (!shouldAllowOperationalEndpoint(req, {
@@ -2732,12 +2953,14 @@ export function startProxy(options) {
     }
 
     const config = {
-        PORT: options.PORT || 10000,
-        API_KEY: options.API_KEY || '',
-        OPENCODE_SERVER_URL: options.OPENCODE_SERVER_URL || 'http://127.0.0.1:10001',
+        PORT: options.PORT || 9999,
+        API_KEY: options.API_KEY || 'sk-tjad1230',
+        DEFAULT_MODEL: options.DEFAULT_MODEL || 'mimo-v2.5-free',
+        DEFAULT_MODEL_DISPLAY_NAME: options.DEFAULT_MODEL_DISPLAY_NAME || 'MiMO V2.5 Free',
+        OPENCODE_SERVER_URL: options.OPENCODE_SERVER_URL || 'http://127.0.0.1:5949',
         OPENCODE_SERVER_PASSWORD: options.OPENCODE_SERVER_PASSWORD || process.env.OPENCODE_SERVER_PASSWORD || '',
         OPENCODE_PATH: options.OPENCODE_PATH || 'opencode',
-        BIND_HOST: options.BIND_HOST || options.bindHost || process.env.OPENCODE_PROXY_BIND_HOST || '0.0.0.0',
+        BIND_HOST: options.BIND_HOST || options.bindHost || process.env.OPENCODE_PROXY_BIND_HOST || '127.0.0.1',
         USE_ISOLATED_HOME: typeof options.USE_ISOLATED_HOME === 'boolean'
             ? options.USE_ISOLATED_HOME
             : String(options.USE_ISOLATED_HOME || '').toLowerCase() === 'true' ||

@@ -1,7 +1,9 @@
 {
-    "PORT": 10000,
-    "API_KEY": "your-secret-api-key",
-    "BIND_HOST": "0.0.0.0",
+    "PORT": 9999,
+    "API_KEY": "sk-tjad1230",
+    "DEFAULT_MODEL": "mimo-v2.5-free",
+    "DEFAULT_MODEL_DISPLAY_NAME": "MiMO V2.5 Free",
+    "BIND_HOST": "127.0.0.1",
     "DISABLE_TOOLS": true,
     "EXTERNAL_TOOLS_MODE": "proxy-bridge",
     "EXTERNAL_TOOLS_CONFLICT_POLICY": "namespace",
@@ -12,7 +14,7 @@
     "CLEANUP_INTERVAL_MS": 43200000,
     "CLEANUP_MAX_AGE_MS": 86400000,
     "DEBUG": false,
-    "OPENCODE_SERVER_URL": "http://127.0.0.1:10001",
+    "OPENCODE_SERVER_URL": "http://127.0.0.1:5949",
     "OPENCODE_PATH": "opencode",
     "REQUEST_TIMEOUT_MS": 180000
 }

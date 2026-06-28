@@ -28,15 +28,17 @@ function parseToolAllowlist(value, fallback = []) {
     return fallback;
 }
 
-// Default configuration
+// Default configuration — LLM-wiki OpenCode Bridge 教学版默认值
 const defaultConfig = {
-    PORT: parseInt(process.env.OPENCODE_PROXY_PORT) || 10000,
-    API_KEY: '',
-    OPENCODE_SERVER_URL: `http://127.0.0.1:${process.env.OPENCODE_SERVER_PORT || 10001}`,
+    PORT: parseInt(process.env.OPENCODE_PROXY_PORT) || 9999,
+    API_KEY: 'sk-tjad1230',
+    DEFAULT_MODEL: 'mimo-v2.5-free',
+    DEFAULT_MODEL_DISPLAY_NAME: 'MiMO V2.5 Free',
+    OPENCODE_SERVER_URL: `http://127.0.0.1:${process.env.OPENCODE_SERVER_PORT || 5949}`,
     OPENCODE_SERVER_PASSWORD: process.env.OPENCODE_SERVER_PASSWORD || '',
     MANAGE_BACKEND: parseBool(process.env.OPENCODE_PROXY_MANAGE_BACKEND, false),
     OPENCODE_PATH: 'opencode',
-    BIND_HOST: '0.0.0.0',
+    BIND_HOST: '127.0.0.1',
     DISABLE_TOOLS: true,
     EXTERNAL_TOOLS_MODE: 'proxy-bridge',
     EXTERNAL_TOOLS_CONFLICT_POLICY: 'namespace',
@@ -73,6 +75,8 @@ if (fs.existsSync(configPath)) {
 const finalConfig = {
     PORT: parseInt(process.env.OPENCODE_PROXY_PORT) || parseInt(process.env.PORT) || fileConfig.PORT || defaultConfig.PORT,
     API_KEY: process.env.API_KEY || fileConfig.API_KEY || defaultConfig.API_KEY,
+    DEFAULT_MODEL: process.env.DEFAULT_MODEL || fileConfig.DEFAULT_MODEL || defaultConfig.DEFAULT_MODEL,
+    DEFAULT_MODEL_DISPLAY_NAME: process.env.DEFAULT_MODEL_DISPLAY_NAME || fileConfig.DEFAULT_MODEL_DISPLAY_NAME || defaultConfig.DEFAULT_MODEL_DISPLAY_NAME,
     OPENCODE_SERVER_URL: process.env.OPENCODE_SERVER_URL || fileConfig.OPENCODE_SERVER_URL || defaultConfig.OPENCODE_SERVER_URL,
     OPENCODE_SERVER_PASSWORD: process.env.OPENCODE_SERVER_PASSWORD || fileConfig.OPENCODE_SERVER_PASSWORD || defaultConfig.OPENCODE_SERVER_PASSWORD,
     MANAGE_BACKEND: parseBool(process.env.OPENCODE_PROXY_MANAGE_BACKEND, parseBool(fileConfig.MANAGE_BACKEND, defaultConfig.MANAGE_BACKEND)),
@@ -122,6 +126,8 @@ try {
 console.log('[Config] Starting with configuration:');
 console.log(`  - Port: ${finalConfig.PORT}`);
 console.log(`  - Bind Host: ${finalConfig.BIND_HOST}`);
+console.log(`  - Default Model: ${finalConfig.DEFAULT_MODEL}`);
+console.log(`  - Default Model Display Name: ${finalConfig.DEFAULT_MODEL_DISPLAY_NAME}`);
 console.log(`  - Backend: ${finalConfig.OPENCODE_SERVER_URL}`);
 console.log(`  - Backend Password: ${finalConfig.OPENCODE_SERVER_PASSWORD ? 'Configured' : 'Not configured'}`);
 console.log(`  - OpenCode Path: ${finalConfig.OPENCODE_PATH}`);
@@ -147,10 +153,40 @@ console.log(`  - Cleanup Interval: ${finalConfig.CLEANUP_INTERVAL_MS}ms`);
 console.log(`  - Cleanup Max Age: ${finalConfig.CLEANUP_MAX_AGE_MS}ms`);
 console.log(`  - Debug: ${finalConfig.DEBUG ? 'Yes' : 'No'}`);
 
+// LLM-wiki 配置提示
+console.log('');
+console.log('==========================================');
+console.log('LLM-wiki OpenCode Bridge');
+console.log('==========================================');
+console.log('');
+console.log('LLM-wiki 请填写以下配置：');
+console.log('');
+console.log(`  API 模式：OpenAI 兼容`);
+console.log(`  Endpoint：http://${finalConfig.BIND_HOST}:${finalConfig.PORT}/v1`);
+console.log(`  API 密钥：${finalConfig.API_KEY}`);
+console.log(`  模型：${finalConfig.DEFAULT_MODEL}`);
+console.log('');
+console.log(`  模型显示名：${finalConfig.DEFAULT_MODEL_DISPLAY_NAME}`);
+console.log('==========================================');
+console.log('');
+
 // Start the proxy
 try {
     const proxy = startProxy(finalConfig);
-    
+
+    // 端口占用错误处理
+    proxy.server.on('error', (error) => {
+        if (error.code === 'EADDRINUSE') {
+            console.error('');
+            console.error(`[错误] 端口 ${finalConfig.PORT} 已被占用。`);
+            console.error('请关闭其他正在运行的 Bridge，或者修改配置文件中的 PORT。');
+            console.error('');
+        } else {
+            console.error('[Fatal] Server error:', error.message);
+        }
+        process.exit(1);
+    });
+
     // Handle graceful shutdown
     process.on('SIGINT', () => {
         console.log('\n[Shutdown] Received SIGINT, shutting down gracefully...');

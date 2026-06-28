@@ -38,7 +38,22 @@ if not exist node_modules (
 )
 
 echo.
+echo 检查 OpenCode CLI 是否已安装...
+where opencode >nul 2>nul
+if errorlevel 1 (
+  echo [警告] 未检测到 OpenCode CLI
+  echo 请先安装 OpenCode CLI：npm install -g opencode-ai
+  echo 安装后请运行 opencode 进行首次配置（选择模型提供商等）
+  echo.
+  echo 如果已安装但仍提示未检测到，请检查 npm 全局路径是否在 PATH 中
+  echo.
+  pause
+  exit /b 1
+)
+echo OpenCode CLI 已安装 ✓
+echo.
 echo 即将启动本地 API 服务...
+echo Bridge 会自动启动 OpenCode CLI 后端服务（opencode serve）
 echo.
 echo ==========================================
 echo LLM-wiki 请填写以下配置：
@@ -51,7 +66,7 @@ echo.
 echo 模型显示名：MiMO V2.5 Free
 echo ==========================================
 echo.
-echo 提示：请确保 OpenCode Desktop 已打开并处于在线状态
+echo 提示：请确保已安装并配置 OpenCode CLI（运行 opencode 进行首次配置）
 echo 按 Ctrl+C 可以停止服务
 echo.
 

@@ -10,7 +10,7 @@ https://github.com/TiaraBasori/OpenCode2API
 
 做一个面向 **LLM-wiki / Obsidian 课程小白学员** 的教学友好版包装工具。
 
-目标是让 Windows 学员在本机已经安装并运行 OpenCode Desktop / OpenCode CLI 的情况下，可以把 OpenCode 本地可用的免费模型能力转换成 **OpenAI-compatible API**，从而填入 LLM-wiki 的自定义 API 配置中使用。
+目标是让 Windows 学员在本机已经安装并运行 **OpenCode CLI** 的情况下，可以把 OpenCode 本地可用的免费模型能力转换成 **OpenAI-compatible API**，从而填入 LLM-wiki 的自定义 API 配置中使用。
 
 最终学员只需要在 LLM-wiki 中填写：
 
@@ -127,7 +127,7 @@ OPENCODE_SERVER_URL=http://127.0.0.1:5949
 3. 默认 API Key：sk-tjad1230
 4. 默认模型：mimo-v2.5-free
 5. 默认模型显示名：MiMO V2.5 Free
-6. 自动检测 OpenCode 是否运行
+6. 自动检测 OpenCode CLI 是否运行
 7. 自动检测 OpenCode 本地 server 是否可访问
 8. 暴露 OpenAI-compatible API
 9. 首页显示 LLM-wiki 配置方式
@@ -167,9 +167,11 @@ start-windows.bat
 ```text
 1. 检查 Node.js
 2. 检查 npm
-3. 自动安装依赖
-4. 启动服务
-5. 在终端中显示 LLM-wiki 配置
+3. 检查 OpenCode CLI 是否已安装
+4. 自动安装依赖
+5. 启动服务（Bridge 会自动启动 opencode serve 后端）
+6. 在终端中显示 LLM-wiki 配置
+7. 自动打开浏览器到配置页面
 ```
 
 脚本示例：
@@ -206,7 +208,20 @@ if not exist node_modules (
 )
 
 echo.
+echo 检查 OpenCode CLI 是否已安装...
+where opencode >nul 2>nul
+if errorlevel 1 (
+  echo [警告] 未检测到 OpenCode CLI
+  echo 请先安装 OpenCode CLI：npm install -g opencode-ai
+  echo 安装后请运行 opencode 进行首次配置（选择模型提供商等）
+  echo.
+  pause
+  exit /b 1
+)
+echo OpenCode CLI 已安装 ✓
+echo.
 echo 即将启动本地 API 服务...
+echo Bridge 会自动启动 OpenCode CLI 后端服务（opencode serve）
 echo.
 echo ==========================================
 echo LLM-wiki 请填写：
@@ -219,9 +234,22 @@ echo.
 echo 模型显示名：MiMO V2.5 Free
 echo ==========================================
 echo.
+echo 提示：请确保已安装并配置 OpenCode CLI（运行 opencode 进行首次配置）
+echo 按 Ctrl+C 可以停止服务
+echo.
+
+REM 延迟 3 秒后自动打开浏览器到配置页面
+start "" cmd /c "timeout /t 3 >nul && start http://127.0.0.1:9999"
 
 npm start
 
+echo.
+echo ==========================================
+echo 服务已停止
+echo.
+echo 如需重新启动，请再次双击 start-windows.bat
+echo ==========================================
+echo.
 pause
 ```
 
@@ -271,8 +299,8 @@ API 密钥：sk-tjad1230
 
 ```text
 未检测到 OpenCode 本地服务。
-请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线状态。
-如果使用 OpenCode CLI，请先运行 opencode。
+请先在终端中运行 opencode 命令启动 OpenCode CLI。
+如果尚未安装 OpenCode CLI，请运行：npm install -g opencode-ai
 ```
 
 ---
@@ -305,7 +333,7 @@ OpenCode 未连接时返回：
   "status": "degraded",
   "service": "llm-wiki-opencode-bridge",
   "opencode": "not_connected",
-  "message": "请先启动 OpenCode Desktop 或 OpenCode CLI"
+  "message": "请先在终端中运行 opencode 启动 OpenCode CLI"
 }
 ```
 
@@ -477,7 +505,7 @@ system/user/assistant 三类 role
 
 ```text
 未检测到 OpenCode 本地服务。
-请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线。
+请先在终端中运行 opencode 命令启动 OpenCode CLI。
 ```
 
 ### 端口被占用
@@ -498,7 +526,7 @@ API 密钥不正确。
 
 ```text
 OpenCode 模型调用失败。
-请先在 OpenCode Desktop 中确认 MiMO V2.5 Free 可以正常对话。
+请先在终端中运行 opencode 并确认 MiMO V2.5 Free 可以正常对话。
 ```
 
 ---
@@ -524,8 +552,9 @@ README 结构建议：
 ## 使用前准备
 
 1. 安装 Node.js LTS
-2. 安装 OpenCode Desktop
-3. 确认 OpenCode Desktop 中 MiMO V2.5 Free 可以正常对话
+2. 安装 OpenCode CLI：`npm install -g opencode-ai`
+3. 首次配置：在终端中运行 `opencode`，选择模型提供商并确认 MiMO V2.5 Free 可用
+4. 启动 Bridge 后会自动启动 OpenCode CLI 后端服务（opencode serve），无需手动启动
 
 ## 一键启动
 
@@ -544,9 +573,9 @@ API 密钥：sk-tjad1230
 
 ### 连接失败怎么办？
 ### 模型列表为空怎么办？
-### OpenCode 没启动怎么办？
+### OpenCode CLI 没启动怎么办？
 ### 9999 端口被占用怎么办？
-### 为什么不要关闭 OpenCode Desktop？
+### 为什么不要关闭 OpenCode CLI 窗口？
 ```
 
 ---
@@ -709,9 +738,9 @@ API 密钥：sk-tjad1230
 老师讲课时可以这样说：
 
 ```text
-OpenCode Desktop 本身能调用免费模型，但 LLM-wiki 需要的是 OpenAI 兼容 API。
+OpenCode CLI 本身能调用免费模型，但 LLM-wiki 需要的是 OpenAI 兼容 API。
 这个 Bridge 的作用，就是把本机 OpenCode 的能力转换成 LLM-wiki 能识别的 API。
-大家不用额外注册模型平台账号，不用配置复杂密钥，只需要保持 OpenCode Desktop 打开，然后启动 Bridge，再把三个字段填进 LLM-wiki。
+大家不用额外注册模型平台账号，不用配置复杂密钥，只需要先运行 opencode 进行首次配置（选择模型提供商），然后双击 start-windows.bat 启动 Bridge（Bridge 会自动启动 opencode serve 后端），再把三个字段填进 LLM-wiki。
 ```
 
 课堂配置统一为：
@@ -733,7 +762,7 @@ OpenAI-compatible API
   ↓
 LLM-wiki OpenCode Bridge
   ↓
-OpenCode Desktop / CLI
+OpenCode CLI (opencode)
   ↓
 MiMO V2.5 Free
 ```
@@ -746,15 +775,14 @@ MVP 完成后再考虑：
 
 ```text
 1. 支持模型下拉选择
-2. 支持自动启动 opencode serve
-3. 支持 Windows exe 打包
-4. 支持托盘程序
-5. 支持日志面板
-6. 支持一键复制配置
-7. 支持自动检测 Obsidian / LLM-wiki 是否安装
-8. 支持 stream=true
-9. 支持 /v1/responses
-10. 支持课堂局域网模式，但必须默认关闭
+2. 支持 Windows exe 打包
+3. 支持托盘程序
+4. 支持日志面板
+5. 支持一键复制配置
+6. 支持自动检测 Obsidian / LLM-wiki 是否安装
+7. 支持 stream=true
+8. 支持 /v1/responses
+9. 支持课堂局域网模式，但必须默认关闭
 ```
 
 第一版不要做太大，优先保证 LLM-wiki 能稳定跑通。

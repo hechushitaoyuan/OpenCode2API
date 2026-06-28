@@ -12,9 +12,9 @@
 
 ## 这个工具做什么？
 
-OpenCode Desktop 本身能调用免费模型（如 MiMO V2.5 Free），但 LLM-wiki 需要的是 OpenAI 兼容 API。这个 Bridge 的作用，就是把本机 OpenCode 的能力转换成 LLM-wiki 能识别的 API。
+OpenCode CLI 本身能调用免费模型（如 MiMO V2.5 Free），但 LLM-wiki 需要的是 OpenAI 兼容 API。这个 Bridge 的作用，就是把本机 OpenCode 的能力转换成 LLM-wiki 能识别的 API。
 
-大家不用额外注册模型平台账号，不用配置复杂密钥，只需要保持 OpenCode Desktop 打开，然后启动 Bridge，再把三个字段填进 LLM-wiki。
+大家不用额外注册模型平台账号，不用配置复杂密钥，只需要保持 OpenCode CLI 正在运行（终端中运行 `opencode`），然后启动 Bridge，再把三个字段填进 LLM-wiki。
 
 课堂主线：
 
@@ -27,7 +27,7 @@ OpenAI-compatible API
   ↓
 LLM-wiki OpenCode Bridge
   ↓
-OpenCode Desktop / CLI
+OpenCode CLI (opencode)
   ↓
 MiMO V2.5 Free
 ```
@@ -46,8 +46,9 @@ MiMO V2.5 Free
 ## 使用前准备
 
 1. **安装 Node.js LTS** — 下载地址：https://nodejs.org/
-2. **安装 OpenCode Desktop** — 从 OpenCode 官网下载安装
-3. **确认 OpenCode Desktop 中 MiMO V2.5 Free 可以正常对话**
+2. **安装 OpenCode CLI** — 在终端中运行：`npm install -g opencode-ai`
+3. **首次配置 OpenCode CLI** — 在终端中运行 `opencode`，选择模型提供商并确认 MiMO V2.5 Free 可用
+4. **启动 Bridge** — 双击 `start-windows.bat`，Bridge 会自动启动 OpenCode CLI 后端服务（`opencode serve`），无需手动启动
 
 > 本工具仅供本机学习测试使用，不要用于公网服务。
 
@@ -64,9 +65,11 @@ start-windows.bat
 脚本会自动：
 1. 检查 Node.js 是否安装
 2. 检查 npm 是否可用
-3. 自动安装依赖（首次运行）
-4. 启动 API 服务
-5. 在终端中显示 LLM-wiki 配置信息
+3. 检查 OpenCode CLI 是否已安装
+4. 自动安装依赖（首次运行）
+5. 启动 API 服务（同时自动启动 `opencode serve` 后端）
+6. 在终端中显示 LLM-wiki 配置信息
+7. 自动打开浏览器到配置页面
 
 ---
 
@@ -164,28 +167,35 @@ curl -X POST http://127.0.0.1:9999/v1/chat/completions \
 
 ### 连接失败怎么办？
 
-1. 确认 OpenCode Desktop 已打开
-2. 确认 OpenCode Desktop 中 Local Server 为绿色在线状态
+1. 确认 OpenCode CLI 已安装（`npm install -g opencode-ai`）
+2. 确认已运行 `opencode` 进行首次配置（选择模型提供商）
 3. 确认 Bridge 服务已启动（终端窗口没有关闭）
 4. 打开浏览器访问 http://127.0.0.1:9999 查看状态
+5. Bridge 会自动启动 `opencode serve` 后端，如果自动启动失败请手动运行：`opencode serve --port 5949`
 
 ### 模型列表为空怎么办？
 
-- 检查 OpenCode Desktop 是否正常登录
-- 在 OpenCode Desktop 中尝试与 MiMO V2.5 Free 对话一次
+- 检查 OpenCode CLI 是否正常启动
+- 在 OpenCode CLI 中尝试与 MiMO V2.5 Free 对话一次
 - 刷新 http://127.0.0.1:9999/v1/models
 
-### OpenCode 没启动怎么办？
+### OpenCode CLI 后端没启动怎么办？
 
-打开 OpenCode Desktop 应用程序，等待其完全加载，确认左下角状态为在线。如果使用 CLI，在终端运行 `opencode` 命令。
+Bridge 启动时会自动启动 `opencode serve` 后端服务。如果自动启动失败，可以手动在终端中运行：
+
+```
+opencode serve --port 5949
+```
+
+如果尚未安装 OpenCode CLI，请先运行 `npm install -g opencode-ai`。
 
 ### 9999 端口被占用怎么办？
 
 关闭其他正在运行的 Bridge 实例。如果仍有问题，可以在 `config.json` 中修改 `PORT` 为其他端口号，同时更新 LLM-wiki 中的 Endpoint。
 
-### 为什么不要关闭 OpenCode Desktop？
+### 为什么不要关闭 Bridge 窗口？
 
-Bridge 只是一个转换层，实际的模型调用由 OpenCode 完成。如果关闭 OpenCode，Bridge 将无法调用任何模型。
+Bridge 会自动管理 `opencode serve` 后端进程。如果关闭 Bridge 窗口，后端服务也会被停止，LLM-wiki 将无法调用任何模型。
 
 ---
 

@@ -2,6 +2,10 @@ import { startProxy } from './src/proxy.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+// 加载 .env 文件中的环境变量
+dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,7 +40,7 @@ const defaultConfig = {
     DEFAULT_MODEL_DISPLAY_NAME: 'MiMO V2.5 Free',
     OPENCODE_SERVER_URL: `http://127.0.0.1:${process.env.OPENCODE_SERVER_PORT || 5949}`,
     OPENCODE_SERVER_PASSWORD: process.env.OPENCODE_SERVER_PASSWORD || '',
-    MANAGE_BACKEND: parseBool(process.env.OPENCODE_PROXY_MANAGE_BACKEND, false),
+    MANAGE_BACKEND: parseBool(process.env.OPENCODE_PROXY_MANAGE_BACKEND, true),
     OPENCODE_PATH: 'opencode',
     BIND_HOST: '127.0.0.1',
     DISABLE_TOOLS: true,

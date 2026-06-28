@@ -1244,7 +1244,7 @@ export function createApp(config) {
                     if (resolvedModel.opencodeConnected === false) {
                         return res.status(503).json({
                             error: {
-                                message: '未检测到 OpenCode 本地服务。\n请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线状态。\n如果使用 OpenCode CLI，请先运行 opencode。',
+                                message: '未检测到 OpenCode 本地服务。\n请先在终端中运行 opencode 命令启动 OpenCode CLI。\n如果尚未安装，请运行：npm install -g opencode-ai',
                                 type: 'opencode_not_connected'
                             }
                         });
@@ -1805,11 +1805,11 @@ export function createApp(config) {
                         }
                         // OpenCode 未连接时的中文提示
                         if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED') || error.message?.includes('fetch failed') || error.message?.includes('connect') || error.message?.includes('Status ')) {
-                            errorMessage = '未检测到 OpenCode 本地服务。\n请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线状态。\n如果使用 OpenCode CLI，请先运行 opencode。';
+                            errorMessage = '未检测到 OpenCode 本地服务。\n请先在终端中运行 opencode 命令启动 OpenCode CLI。\n如果尚未安装，请运行：npm install -g opencode-ai';
                         }
                         // 模型调用失败提示
                         if (error.code === 'model_not_found' || error.message?.includes('Model not found')) {
-                            errorMessage = 'OpenCode 模型调用失败。\n请先在 OpenCode Desktop 中确认 MiMO V2.5 Free 可以正常对话。';
+                            errorMessage = 'OpenCode 模型调用失败。\n请先在终端中运行 opencode 并确认 MiMO V2.5 Free 可以正常对话。';
                         }
                         res.status(statusCode).json({
                             error: {
@@ -1841,7 +1841,7 @@ export function createApp(config) {
             if (!res.headersSent) {
                 let errorMessage = error.message;
                 if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED') || error.message?.includes('fetch failed')) {
-                    errorMessage = '未检测到 OpenCode 本地服务。\n请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线状态。';
+                    errorMessage = '未检测到 OpenCode 本地服务。\n请先在终端中运行 opencode 命令启动 OpenCode CLI。';
                 }
                 res.status(500).json({ error: { message: errorMessage, type: error.constructor.name } });
             }
@@ -1934,8 +1934,8 @@ API 密钥：${config.API_KEY}
 ${!opencodeConnected ? `
 <div class="warning">
 <p><strong>未检测到 OpenCode 本地服务。</strong></p>
-<p>请先打开 OpenCode Desktop，并确认 Local Server 为绿色在线状态。</p>
-<p>如果使用 OpenCode CLI，请先运行 opencode。</p>
+<p>请先在终端中运行 opencode 命令启动 OpenCode CLI。</p>
+<p>如果尚未安装，请运行：npm install -g opencode-ai</p>
 </div>` : ''}
 </div>
 </div>
@@ -1975,7 +1975,7 @@ function copyConfig() {
                 status: 'degraded',
                 service: 'llm-wiki-opencode-bridge',
                 opencode: 'not_connected',
-                message: '请先启动 OpenCode Desktop 或 OpenCode CLI'
+                message: '请先在终端中运行 opencode 启动 OpenCode CLI'
             });
         }
     });

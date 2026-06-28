@@ -55,6 +55,16 @@ echo 提示：请确保 OpenCode Desktop 已打开并处于在线状态
 echo 按 Ctrl+C 可以停止服务
 echo.
 
+REM 延迟 3 秒后自动打开浏览器到配置页面
+start "" cmd /c "timeout /t 3 >nul && start http://127.0.0.1:9999"
+
 npm start
 
+echo.
+echo ==========================================
+echo 服务已停止
+echo.
+echo 如需重新启动，请再次双击 start-windows.bat
+echo ==========================================
+echo.
 pause

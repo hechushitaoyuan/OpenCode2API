@@ -273,7 +273,8 @@ function checkHealth(serverUrl, password = '') {
         const headers = buildBackendAuthHeaders(password);
         const options = headers ? { headers } : undefined;
         const req = http.get(`${serverUrl}/health`, options, (res) => {
-            if (res.statusCode === 200) resolve(true);
+            // 200 = 健康，401 = 服务器运行但需要认证（也视为已连接）
+            if (res.statusCode === 200 || res.statusCode === 401) resolve(true);
             else reject(new Error(`Status ${res.statusCode}`));
         });
         req.on('error', (e) => reject(e));
